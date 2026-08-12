@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logmais Fleet - Gestão Multi-Veículos & Vistorias</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navy: '#0b2341',
+              navyDark: '#081a30',
+              navyDarker: '#061425',
+              green: '#2fb344',
+              greenHover: '#269337'
+            },
+            dark: {
+              bg: '#111827',
+              card: '#1f2937',
+              border: '#374151',
+              text: '#f3f4f6',
+              subtext: '#9ca3af'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-dark-bg text-dark-text font-sans antialiased">
+
+  <div class="flex h-screen overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="w-64 bg-brand-navyDarker text-white flex flex-col justify-between shrink-0 shadow-xl border-r border-dark-border">
+      <div>
+        <div class="p-5 border-b border-dark-border flex items-center justify-center bg-white my-3 mx-4 rounded-lg shadow-inner">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="truck" class="w-7 h-7 text-brand-green"></i>
+            <span class="text-xl font-bold italic tracking-wider text-brand-navy">
+              Log<span class="text-brand-green">mais</span>
+            </span>
+          </div>
+        </div>
+
+        <nav class="p-4 space-y-1">
+          <button onclick="navegarPara('dashboard')" id="nav-dashboard" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg bg-brand-green text-white font-semibold shadow-sm transition">
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+            <span>Dashboard</span>
+          </button>
+          <button onclick="navegarPara('frota')" id="nav-frota" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-dark-subtext hover:bg-brand-navy hover:text-white transition">
+            <i data-lucide="truck" class="w-5 h-5"></i>
+            <span>Frota Multiveículos</span>
+          </button>
+          <button onclick="navegarPara('checklist')" id="nav-checklist" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-dark-subtext hover:bg-brand-navy hover:text-white transition">
+            <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+            <span>Check-out / Check-in</span>
+          </button>
+          <button onclick="navegarPara('contratos')" id="nav-contratos" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-dark-subtext hover:bg-brand-navy hover:text-white transition">
+            <i data-lucide="file-text" class="w-5 h-5"></i>
+            <span>Contratos & Clientes</span>
+          </button>
+          <button onclick="navegarPara('manutencao')" id="nav-manutencao" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-dark-subtext hover:bg-brand-navy hover:text-white transition">
+            <i data-lucide="wrench" class="w-5 h-5"></i>
+            <span>Manutenções (10k)</span>
+          </button>
+          <button onclick="navegarPara('financeiro')" id="nav-financeiro" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-dark-subtext hover:bg-brand-navy hover:text-white transition">
+            <i data-lucide="dollar-sign" class="w-5 h-5"></i>
+            <span>Financeiro Locadora</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="p-4 border-t border-dark-border text-xs text-dark-subtext flex items-center justify-between bg-dark-bg/30">
+        <div>
+          <p class="font-semibold text-dark-text">Logmais Fleet v2.1</p>
+          <p>Conexão Ativa</p>
+        </div>
+        <i data-lucide="shield-check" class="w-5 h-5 text-brand-green"></i>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <div class="flex-1 flex flex-col overflow-y-auto">
+
+      <!-- HEADER -->
+      <header class="bg-dark-card border-b border-dark-border px-8 py-4 flex justify-between items-center sticky top-0 z-10">
+        <div>
+          <h1 id="page-title" class="text-2xl font-bold text-dark-text">Visão Geral da Operação</h1>
+          <p class="text-sm text-dark-subtext">Acompanhamento temporal, franquias e revisões.</p>
+        </div>
+
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-2 bg-dark-bg p-1.5 rounded-lg border border-dark-border">
+            <i data-lucide="calendar" class="w-4 h-4 text-brand-green ml-2"></i>
+            <select id="filtro-mes" onchange="carregarDashboard()" class="bg-transparent text-xs text-dark-text outline-none">
+              <option value="">Todos os Meses</option>
+              <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+              <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+              <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+              <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+            </select>
+            <select id="filtro-ano" onchange="carregarDashboard()" class="bg-transparent text-xs text-dark-text outline-none">
+              <option value="2026" selected>2026</option>
+              <option value="2025">2025</option>
+            </select>
+          </div>
+
+          <div class="h-8 w-px bg-dark-border"></div>
+
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-full bg-brand-green text-brand-navy flex items-center justify-center font-bold">LM</div>
+            <div class="text-sm">
+              <p class="font-semibold text-dark-text leading-none">Administrador</p>
+              <p class="text-xs text-dark-subtext">Locadora Logmais</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- BODY CONTENT -->
+      <main class="p-8 space-y-8 bg-dark-bg/50">
+
+        <!-- 1. DASHBOARD -->
+        <div id="aba-dashboard" class="space-y-8">
+          <div class="bg-amber-950/40 border border-amber-600 p-4 rounded-xl shadow-lg flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="p-2.5 bg-amber-600/20 text-amber-500 rounded-full shrink-0"><i data-lucide="alert-triangle" class="w-6 h-6"></i></div>
+              <div>
+                <p class="font-semibold text-amber-300">Central de Alertas de Franquia & Manutenção</p>
+                <p id="msg-alerta-texto" class="text-sm text-amber-100">Carregando dados da frota...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPIS -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-dark-card p-5 rounded-2xl border border-dark-border shadow-sm flex items-center justify-between">
+              <div>
+                <p class="text-xs font-bold uppercase text-dark-subtext">Frota Total / Ativa</p>
+                <h3 id="kpi-frota" class="text-2xl font-black text-dark-text mt-1.5">-- / --</h3>
+              </div>
+              <div class="p-3 bg-brand-navy text-brand-green rounded-xl"><i data-lucide="truck" class="w-6 h-6"></i></div>
+            </div>
+
+            <div class="bg-dark-card p-5 rounded-2xl border border-dark-border shadow-sm flex items-center justify-between">
+              <div>
+                <p class="text-xs font-bold uppercase text-dark-subtext">Faturamento (Período)</p>
+                <h3 id="kpi-faturamento" class="text-2xl font-black text-brand-green mt-1.5">R$ 0,00</h3>
+              </div>
+              <div class="p-3 bg-brand-green/10 text-brand-green rounded-xl"><i data-lucide="trending-up" class="w-6 h-6"></i></div>
+            </div>
+
+            <div class="bg-dark-card p-5 rounded-2xl border border-dark-border shadow-sm flex items-center justify-between">
+              <div>
+                <p class="text-xs font-bold uppercase text-dark-subtext">Custos Fixos (Período)</p>
+                <h3 id="kpi-custos" class="text-2xl font-black text-red-400 mt-1.5">R$ 0,00</h3>
+              </div>
+              <div class="p-3 bg-red-900/30 text-red-400 rounded-xl"><i data-lucide="trending-down" class="w-6 h-6"></i></div>
+            </div>
+
+            <div class="bg-dark-card p-5 rounded-2xl border border-dark-border shadow-sm flex items-center justify-between">
+              <div>
+                <p class="text-xs font-bold uppercase text-dark-subtext">Resultado Líquido</p>
+                <h3 id="kpi-liquido" class="text-2xl font-black text-dark-text mt-1.5">R$ 0,00</h3>
+              </div>
+              <div class="p-3 bg-brand-navy text-dark-text rounded-xl"><i data-lucide="wallet" class="w-6 h-6"></i></div>
+            </div>
+          </div>
+
+          <!-- RESUMO DE VEÍCULOS -->
+          <div class="bg-dark-card rounded-2xl border border-dark-border shadow-lg p-6">
+            <h2 class="text-lg font-bold text-dark-text mb-4">Frota e Status de Locação</h2>
+            <table class="w-full text-left text-sm">
+              <thead class="text-xs uppercase text-dark-subtext border-b border-dark-border">
+                <tr>
+                  <th class="py-2">Placa</th>
+                  <th class="py-2">Categoria</th>
+                  <th class="py-2">Modelo</th>
+                  <th class="py-2">KM Atual</th>
+                  <th class="py-2">Capacidade (KG)</th>
+                  <th class="py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-dash-veiculos" class="divide-y divide-dark-border"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 2. ABA FROTA MULTIVEÍCULOS -->
+        <div id="aba-frota" class="hidden space-y-6">
+          <div class="flex justify-between items-center bg-dark-card p-6 rounded-2xl border border-dark-border">
+            <div>
+              <h2 class="text-lg font-bold text-dark-text">Gestão da Frota Multi-Utilitários</h2>
+              <p class="text-xs text-dark-subtext">Cadastre utilitários leves ou pesados (Fiorino, Master, Sprinter, HR...).</p>
+            </div>
+            <button onclick="abrirModal('modal-veiculo')" class="bg-brand-green hover:bg-brand-greenHover text-brand-navy font-bold px-4 py-2 rounded-lg text-xs flex items-center space-x-2">
+              <i data-lucide="plus" class="w-4 h-4"></i><span>Novo Veículo</span>
+            </button>
+          </div>
+
+          <div class="bg-dark-card rounded-2xl border border-dark-border p-6 overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="text-xs uppercase text-dark-subtext border-b border-dark-border">
+                <tr>
+                  <th class="py-3">ID</th>
+                  <th class="py-3">Placa</th>
+                  <th class="py-3">Categoria</th>
+                  <th class="py-3">Modelo</th>
+                  <th class="py-3">Ano</th>
+                  <th class="py-3">Carga (KG)</th>
+                  <th class="py-3">KM Atual</th>
+                  <th class="py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-geral-veiculos" class="divide-y divide-dark-border"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3. ABA CHECKLIST COMPLETO -->
+        <div id="aba-checklist" class="hidden space-y-6">
+          <div class="bg-dark-card p-6 rounded-2xl border border-dark-border">
+            <h2 class="text-lg font-bold text-dark-text">Vistoria Completa de Entrega (Check-out) & Retorno (Check-in)</h2>
+            <p class="text-xs text-dark-subtext">Garantia legal e conferência de avarias.</p>
+          </div>
+
+          <div class="bg-dark-card rounded-2xl border border-dark-border p-8">
+            <form id="form-checklist-completo" class="space-y-6">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-dark-border pb-6">
+                <div>
+                  <label class="block text-xs font-semibold text-dark-subtext mb-1">Tipo de Vistoria</label>
+                  <select id="chk-tipo" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none">
+                    <option value="CHECKOUT_SAIDA">Check-out (Entrega ao Cliente)</option>
+                    <option value="CHECKIN_RETORNO">Check-in (Devolução pelo Cliente)</option>
+                    <option value="VISTORIA_ROTINA">Vistoria Periódica de Rotina</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-dark-subtext mb-1">Veículo</label>
+                  <select id="chk-veiculo" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none"></select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-dark-subtext mb-1">Odômetro Atual (KM)</label>
+                  <input id="chk-km" type="number" placeholder="Ex: 15400" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-dark-border pb-6">
+                <div class="space-y-2">
+                  <h4 class="text-xs font-bold uppercase text-brand-green">1. Documentação & Legal</h4>
+                  <label class="flex items-center space-x-2 text-xs"><input id="chk-crlv" type="checkbox" checked> <span>Documento CRLV Presente</span></label>
+                  <label class="flex items-center space-x-2 text-xs"><input id="chk-manual" type="checkbox" checked> <span>Manual do Proprietário</span></label>
+                  <label class="flex items-center space-x-2 text-xs"><input id="chk-seguro" type="checkbox" checked> <span>Cartão Seguro 24h</span></label>
+                </div>
+
+                <div class="space-y-2">
+                  <h4 class="text-xs font-bold uppercase text-brand-green">2. Operação & Combustível</h4>
+                  <label class="block text-xs text-dark-subtext mb-1">Nível de Combustível</label>
+                  <select id="chk-combustivel" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2 text-xs outline-none">
+                    <option value="CHEIO">Tanque Cheio (1/1)</option>
+                    <option value="3/4">3/4 do Tanque</option>
+                    <option value="1/2">1/2 do Tanque</option>
+                    <option value="1/4">1/4 do Tanque</option>
+                    <option value="RESERVA">Reserva</option>
+                  </select>
+                  <label class="flex items-center space-x-2 text-xs"><input id="chk-ar" type="checkbox" checked> <span>Ar-Condicionado / Painel OK</span></label>
+                </div>
+
+                <div class="space-y-2">
+                  <h4 class="text-xs font-bold uppercase text-brand-green">3. Emergência & Rodagem</h4>
+                  <label class="flex items-center space-x-2 text-xs"><input id="chk-estepe" type="checkbox" checked> <span>Estepe Inflado OK</span></label>
+                  <label class="flex items-center space-x-2 text-xs"><input id="chk-kit" type="checkbox" checked> <span>Kit (Macaco, Chave, Triângulo)</span></label>
+                  <label class="flex items-center space-x-2 text-xs"><input id="chk-pneus" type="checkbox" checked> <span>Pneus com Sulco/TWI Regular</span></label>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-dark-subtext mb-1">Avarias / Observações de Lataria e Vidros</label>
+                <textarea id="chk-obs" rows="2" placeholder="Descreva riscos pré-existentes, trincas ou rasgo em bancos..." class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none"></textarea>
+              </div>
+
+              <button type="submit" class="w-full bg-brand-green hover:bg-brand-greenHover text-brand-navy font-black py-3 rounded-lg text-xs transition shadow-lg">
+                Finalizar e Registrar Vistoria Completa
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- 4. ABA CONTRATOS & CLIENTES -->
+        <div id="aba-contratos" class="hidden space-y-6">
+          <div class="flex justify-between items-center bg-dark-card p-6 rounded-2xl border border-dark-border">
+            <div>
+              <h2 class="text-lg font-bold text-dark-text">Transportadoras & Contratos</h2>
+              <p class="text-xs text-dark-subtext">Gestão de clientes locatários e franquias negociadas.</p>
+            </div>
+            <div class="flex space-x-3">
+              <button onclick="abrirModal('modal-transportadora')" class="border border-dark-border hover:bg-brand-navy text-dark-text font-semibold px-4 py-2 rounded-lg text-xs">Nova Transportadora</button>
+              <button onclick="abrirModal('modal-contrato')" class="bg-brand-green hover:bg-brand-greenHover text-brand-navy font-bold px-4 py-2 rounded-lg text-xs flex items-center space-x-2">
+                <i data-lucide="plus" class="w-4 h-4"></i><span>Novo Contrato</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-dark-card rounded-2xl border border-dark-border p-6 overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="text-xs uppercase text-dark-subtext border-b border-dark-border">
+                <tr>
+                  <th class="py-3"># ID</th>
+                  <th class="py-3">Veículo ID</th>
+                  <th class="py-3">Transportadora ID</th>
+                  <th class="py-3">Franquia Mensal</th>
+                  <th class="py-3">Excedente (R$/KM)</th>
+                  <th class="py-3">Mensalidade</th>
+                  <th class="py-3">Vencimento</th>
+                  <th class="py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-geral-contratos" class="divide-y divide-dark-border"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 5. ABA MANUTENÇÕES (10.000 KM) -->
+        <div id="aba-manutencao" class="hidden space-y-6">
+          <div class="bg-dark-card p-6 rounded-2xl border border-dark-border">
+            <h2 class="text-lg font-bold text-dark-text">Controle de Revisões Preventivas (Regra de 10.000 KM)</h2>
+            <p class="text-xs text-dark-subtext">Contagem regressiva automática de KM para envio do utilitário para a oficina.</p>
+          </div>
+
+          <div class="bg-dark-card rounded-2xl border border-dark-border p-6 overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="text-xs uppercase text-dark-subtext border-b border-dark-border">
+                <tr>
+                  <th class="py-3">Placa</th>
+                  <th class="py-3">Modelo</th>
+                  <th class="py-3">KM Atual</th>
+                  <th class="py-3">Última Revisão</th>
+                  <th class="py-3">Próxima Revisão</th>
+                  <th class="py-3">KM Restantes</th>
+                  <th class="py-3">Situação</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-geral-manutencao" class="divide-y divide-dark-border"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 6. ABA FINANCEIRO LOCADORA -->
+        <div id="aba-financeiro" class="hidden space-y-6">
+          <div class="flex justify-between items-center bg-dark-card p-6 rounded-2xl border border-dark-border">
+            <div>
+              <h2 class="text-lg font-bold text-dark-text">Custos Fixos & Contas a Pagar por Utilitário</h2>
+              <p class="text-xs text-dark-subtext">Lançamento por mês e ano para DRE real da empresa.</p>
+            </div>
+            <button onclick="abrirModal('modal-custo')" class="bg-brand-green hover:bg-brand-greenHover text-brand-navy font-bold px-4 py-2 rounded-lg text-xs flex items-center space-x-2">
+              <i data-lucide="plus" class="w-4 h-4"></i><span>Adicionar Custo Fixo</span>
+            </button>
+          </div>
+
+          <div class="bg-dark-card rounded-2xl border border-dark-border p-6 overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="text-xs uppercase text-dark-subtext border-b border-dark-border">
+                <tr>
+                  <th class="py-3">Descrição Custo</th>
+                  <th class="py-3">Veículo ID</th>
+                  <th class="py-3">Tipo</th>
+                  <th class="py-3">Mês/Ano Ref.</th>
+                  <th class="py-3">Valor Mensal</th>
+                  <th class="py-3">Dia Vencimento</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-geral-custos" class="divide-y divide-dark-border"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- MODAIS DE CADASTRO -->
+
+  <!-- MODAL VEÍCULO FLEXÍVEL -->
+  <div id="modal-veiculo" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-dark-card border border-dark-border rounded-2xl p-6 w-full max-w-md">
+      <h3 class="text-lg font-bold text-dark-text mb-4">Cadastrar Utilitário na Frota</h3>
+      <form id="form-cad-veiculo" class="space-y-3">
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">Placa</label>
+          <input id="cad-v-placa" type="text" placeholder="ABC-1234" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">Categoria do Utilitário</label>
+          <select id="cad-v-categoria" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none">
+            <option value="Fiorino / Leve">Fiorino Baú / Utilitário Leve</option>
+            <option value="Van de Carga">Van Carga (Sprinter, Master, Ducato)</option>
+            <option value="Caminhão Chassi">Camionete Chassi / HR / Bongo</option>
+            <option value="Picape">Picape de Entrega</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">Modelo e Marca</label>
+          <input id="cad-v-modelo" type="text" placeholder="Ex: Renault Master L3H2" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-dark-subtext">Ano</label>
+            <input id="cad-v-ano" type="number" value="2024" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-dark-subtext">Carga Máx (KG)</label>
+            <input id="cad-v-carga" type="number" value="650" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">KM Inicial</label>
+          <input id="cad-v-km" type="number" value="0" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div class="flex justify-end space-x-3 mt-4">
+          <button type="button" onclick="fecharModal('modal-veiculo')" class="px-4 py-2 border border-dark-border rounded-lg text-xs">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-brand-green text-brand-navy font-bold rounded-lg text-xs">Salvar Veículo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL TRANSPORTADORA -->
+  <div id="modal-transportadora" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-dark-card border border-dark-border rounded-2xl p-6 w-full max-w-md">
+      <h3 class="text-lg font-bold text-dark-text mb-4">Cadastrar Transportadora Cliente</h3>
+      <form id="form-cad-transp" class="space-y-3">
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">Razão Social</label>
+          <input id="cad-t-razao" type="text" placeholder="Expresso Logística Ltda" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">CNPJ</label>
+          <input id="cad-t-cnpj" type="text" placeholder="00.000.000/0001-00" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">E-mail</label>
+          <input id="cad-t-email" type="email" placeholder="frota@expresso.com.br" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">Telefone</label>
+          <input id="cad-t-fone" type="text" placeholder="(81) 99999-9999" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div class="flex justify-end space-x-3 mt-4">
+          <button type="button" onclick="fecharModal('modal-transportadora')" class="px-4 py-2 border border-dark-border rounded-lg text-xs">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-brand-green text-brand-navy font-bold rounded-lg text-xs">Salvar Cliente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL CONTRATO -->
+  <div id="modal-contrato" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-dark-card border border-dark-border rounded-2xl p-6 w-full max-w-md">
+      <h3 class="text-lg font-bold text-dark-text mb-4">Novo Contrato de Locação</h3>
+      <form id="form-cad-contrato" class="space-y-3">
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">ID do Veículo Cadastrado</label>
+          <input id="cad-c-veiculo" type="number" placeholder="Ex: 1" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">ID da Transportadora Cadastrada</label>
+          <input id="cad-c-transp" type="number" placeholder="Ex: 1" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-dark-subtext">KM Inicial</label>
+            <input id="cad-c-kminicial" type="number" value="0" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-dark-subtext">Franquia (KM)</label>
+            <input id="cad-c-franquia" type="number" value="6000" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-dark-subtext">Mensalidade (R$)</label>
+            <input id="cad-c-valor" type="number" value="4500" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-dark-subtext">Excedente R$/KM</label>
+            <input id="cad-c-excedente" type="number" step="0.01" value="0.60" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">Dia Vencimento Fatura</label>
+          <input id="cad-c-venc" type="number" value="10" min="1" max="31" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div class="flex justify-end space-x-3 mt-4">
+          <button type="button" onclick="fecharModal('modal-contrato')" class="px-4 py-2 border border-dark-border rounded-lg text-xs">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-brand-green text-brand-navy font-bold rounded-lg text-xs">Ativar Contrato</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL CUSTO FIXO -->
+  <div id="modal-custo" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-dark-card border border-dark-border rounded-2xl p-6 w-full max-w-md">
+      <h3 class="text-lg font-bold text-dark-text mb-4">Adicionar Custo Fixo por Veículo</h3>
+      <form id="form-cad-custo" class="space-y-3">
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">ID do Veículo</label>
+          <input id="cad-cust-veiculo" type="number" placeholder="Ex: 1" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">Descrição Custo</label>
+          <input id="cad-cust-desc" type="text" placeholder="Financiamento BV / Seguro Frota" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">Tipo de Custo</label>
+          <select id="cad-cust-tipo" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none">
+            <option value="FINANCIAMENTO">Financiamento</option>
+            <option value="SEGURO">Seguro Apólice</option>
+            <option value="IPVA">IPVA / Licenciamento</option>
+            <option value="MANUTENCAO">Manutenção Corretiva</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-dark-subtext">Mês Referência</label>
+            <input id="cad-cust-mes" type="number" value="8" min="1" max="12" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-dark-subtext">Ano Referência</label>
+            <input id="cad-cust-ano" type="number" value="2026" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">Valor Mensal (R$)</label>
+          <input id="cad-cust-valor" type="number" step="0.01" placeholder="1850.00" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-dark-subtext">Dia do Vencimento</label>
+          <input id="cad-cust-venc" type="number" value="5" min="1" max="31" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+        </div>
+        <div class="flex justify-end space-x-3 mt-4">
+          <button type="button" onclick="fecharModal('modal-custo')" class="px-4 py-2 border border-dark-border rounded-lg text-xs">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-brand-green text-brand-navy font-bold rounded-lg text-xs">Salvar Custo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT INTEGRADO COM TRATAMENTO DE ERRO -->
+  <script>
+    const API_URL = "http://127.0.0.1:8000";
+
+    function abrirModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function fecharModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    function navegarPara(aba) {
+      const abas = ['dashboard', 'frota', 'checklist', 'contratos', 'manutencao', 'financeiro'];
+      abas.forEach(a => {
+        const elem = document.getElementById(`aba-${a}`);
+        const btn = document.getElementById(`nav-${a}`);
+        if (elem) elem.classList.add('hidden');
+        if (btn) btn.className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-dark-subtext hover:bg-brand-navy hover:text-white transition";
+      });
+
+      document.getElementById(`aba-${aba}`).classList.remove('hidden');
+      document.getElementById(`nav-${aba}`).className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg bg-brand-green text-white font-semibold shadow-sm transition";
+
+      if (aba === 'frota') carregarTabelaFrota();
+      if (aba === 'checklist') carregarSelectChecklist();
+      if (aba === 'contratos') carregarTabelaContratos();
+      if (aba === 'manutencao') carregarTabelaManutencao();
+      if (aba === 'financeiro') carregarTabelaCustos();
+    }
+
+    async function carregarDashboard() {
+      try {
+        const mes = document.getElementById('filtro-mes').value;
+        const ano = document.getElementById('filtro-ano').value;
+        
+        let url = `${API_URL}/api/dashboard/resumo?`;
+        if (mes) url += `mes=${mes}&`;
+        if (ano) url += `ano=${ano}`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        document.getElementById('kpi-frota').innerText = `${data.kpis.frota_ativa} / ${data.kpis.frota_total}`;
+        document.getElementById('kpi-faturamento').innerText = `R$ ${data.kpis.faturamento_mensal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        document.getElementById('kpi-custos').innerText = `R$ ${data.kpis.custos_fixos_mensais.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        document.getElementById('kpi-liquido').innerText = `R$ ${data.kpis.resultado_liquido.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+        if (data.alertas_ativos && data.alertas_ativos.length > 0) {
+          document.getElementById('msg-alerta-texto').innerText = data.alertas_ativos[0].mensagem;
+        } else {
+          document.getElementById('msg-alerta-texto').innerText = "Todos os utilitários estão com revisões em dia e franquias dentro do limite.";
+        }
+
+        carregarTabelaDashVeiculos();
+      } catch (err) { console.error("Erro Dashboard:", err); }
+    }
+
+    async function carregarTabelaDashVeiculos() {
+      const res = await fetch(`${API_URL}/api/veiculos/`);
+      const veiculos = await res.json();
+      const tbl = document.getElementById('tbl-dash-veiculos');
+      if (veiculos.length === 0) {
+        tbl.innerHTML = `<tr><td colspan="6" class="py-3 text-center text-dark-subtext">Nenhum veículo cadastrado. Vá na aba 'Frota' para cadastrar o primeiro.</td></tr>`;
+        return;
+      }
+      tbl.innerHTML = veiculos.map(v => `
+        <tr class="hover:bg-brand-navyDark transition">
+          <td class="py-3 font-mono font-bold">${v.placa}</td>
+          <td class="py-3 text-xs text-brand-green">${v.categoria}</td>
+          <td class="py-3">${v.modelo}</td>
+          <td class="py-3 font-bold">${v.km_atual.toLocaleString()} KM</td>
+          <td class="py-3">${v.capacidade_carga_kg || 650} KG</td>
+          <td class="py-3"><span class="px-2 py-0.5 rounded text-xs ${v.status === 'ALOCADO' ? 'bg-emerald-900/60 text-emerald-300' : 'bg-slate-700 text-slate-300'}">${v.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    async function carregarTabelaFrota() {
+      const res = await fetch(`${API_URL}/api/veiculos/`);
+      const list = await res.json();
+      document.getElementById('tbl-geral-veiculos').innerHTML = list.map(v => `
+        <tr>
+          <td class="py-3 font-bold">#${v.id}</td>
+          <td class="py-3 font-mono font-bold text-brand-green">${v.placa}</td>
+          <td class="py-3 text-xs">${v.categoria}</td>
+          <td class="py-3">${v.modelo}</td>
+          <td class="py-3">${v.ano}</td>
+          <td class="py-3">${v.capacidade_carga_kg || 650} KG</td>
+          <td class="py-3 font-bold">${v.km_atual} KM</td>
+          <td class="py-3"><span class="px-2 py-1 rounded text-xs bg-brand-navy text-brand-green">${v.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    async function carregarSelectChecklist() {
+      const res = await fetch(`${API_URL}/api/veiculos/`);
+      const list = await res.json();
+      const select = document.getElementById('chk-veiculo');
+      if (list.length === 0) {
+        select.innerHTML = `<option value="">Nenhum veículo cadastrado</option>`;
+      } else {
+        select.innerHTML = list.map(v => `<option value="${v.id}">${v.placa} - ${v.modelo} (${v.categoria})</option>`).join('');
+      }
+    }
+
+    async function carregarTabelaContratos() {
+      const res = await fetch(`${API_URL}/api/contratos/`);
+      const list = await res.json();
+      document.getElementById('tbl-geral-contratos').innerHTML = list.map(c => `
+        <tr>
+          <td class="py-3 font-bold">#${c.id}</td>
+          <td class="py-3">Veículo ID ${c.veiculo_id}</td>
+          <td class="py-3">Transp. ID ${c.transportadora_id}</td>
+          <td class="py-3">${c.franquia_km_mensal.toLocaleString()} KM/mês</td>
+          <td class="py-3">R$ ${c.valor_km_excedente.toFixed(2)}</td>
+          <td class="py-3 font-bold text-brand-green">R$ ${c.valor_mensalidade.toFixed(2)}</td>
+          <td class="py-3">Dia ${c.dia_vencimento_fatura}</td>
+          <td class="py-3"><span class="px-2 py-1 rounded text-xs bg-emerald-900/60 text-emerald-300">${c.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    async function carregarTabelaManutencao() {
+      const res = await fetch(`${API_URL}/api/veiculos/`);
+      const list = await res.json();
+      document.getElementById('tbl-geral-manutencao').innerHTML = list.map(v => {
+        const prox = v.km_ultima_revisao + 10000;
+        const rest = prox - v.km_atual;
+        return `
+          <tr>
+            <td class="py-3 font-mono font-bold">${v.placa}</td>
+            <td class="py-3">${v.modelo}</td>
+            <td class="py-3">${v.km_atual} KM</td>
+            <td class="py-3">${v.km_ultima_revisao} KM</td>
+            <td class="py-3 font-bold text-amber-300">${prox} KM</td>
+            <td class="py-3 font-bold ${rest <= 500 ? 'text-red-400' : 'text-slate-300'}">${rest} KM</td>
+            <td class="py-3">${rest <= 500 ? '<span class="px-2 py-1 rounded text-xs bg-red-900/60 text-red-300">Revisão Recomendada</span>' : '<span class="px-2 py-1 rounded text-xs bg-emerald-900/60 text-emerald-300">Em dia</span>'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function carregarTabelaCustos() {
+      const res = await fetch(`${API_URL}/api/custos-fixos/`);
+      const list = await res.json();
+      document.getElementById('tbl-geral-custos').innerHTML = list.map(c => `
+        <tr>
+          <td class="py-3 font-bold">${c.descricao}</td>
+          <td class="py-3">Veículo ID ${c.veiculo_id}</td>
+          <td class="py-3">${c.tipo_custo}</td>
+          <td class="py-3">${c.mes_referencia || 'Todos'}/${c.ano_referencia || '2026'}</td>
+          <td class="py-3 font-bold text-red-400">R$ ${c.valor_mensal.toFixed(2)}</td>
+          <td class="py-3">Dia ${c.dia_vencimento}</td>
+        </tr>
+      `).join('');
+    }
+
+    // FORMULÁRIO DE VISTORIA
+    document.getElementById('form-checklist-completo').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const veiculoId = document.getElementById('chk-veiculo').value;
+      if (!veiculoId) { alert("Cadastre ao menos um veículo antes de registrar o checklist!"); return; }
+
+      const payload = {
+        veiculo_id: parseInt(veiculoId),
+        tipo: document.getElementById('chk-tipo').value,
+        km_registrado: parseInt(document.getElementById('chk-km').value),
+        nivel_combustivel: document.getElementById('chk-combustivel').value,
+        crlv_ok: document.getElementById('chk-crlv').checked,
+        manual_ok: document.getElementById('chk-manual').checked,
+        cartao_seguro_ok: document.getElementById('chk-seguro').checked,
+        estepe_ok: document.getElementById('chk-estepe').checked,
+        kit_ferramentas_ok: document.getElementById('chk-kit').checked,
+        pneus_sulco_ok: document.getElementById('chk-pneus').checked,
+        ar_condicionado_ok: document.getElementById('chk-ar').checked,
+        avarias_observacoes: document.getElementById('chk-obs').value
+      };
+
+      try {
+        const res = await fetch(`${API_URL}/api/checklists/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`✅ ${data.mensagem}`);
+          document.getElementById('chk-km').value = '';
+          carregarDashboard();
+        } else { alert(`❌ Erro: ${data.detail || 'Falha ao salvar'}`); }
+      } catch (err) { alert("Servidor offline. Verifique o terminal CMD."); }
+    });
+
+    // FORMULÁRIOS DE MODAIS COM ALERTAS DETALHADOS
+    document.getElementById('form-cad-veiculo').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const payload = {
+        placa: document.getElementById('cad-v-placa').value,
+        categoria: document.getElementById('cad-v-categoria').value,
+        modelo: document.getElementById('cad-v-modelo').value,
+        ano: parseInt(document.getElementById('cad-v-ano').value),
+        capacidade_carga_kg: parseFloat(document.getElementById('cad-v-carga').value),
+        km_atual: parseInt(document.getElementById('cad-v-km').value),
+        km_ultima_revisao: 0
+      };
+      try {
+        const res = await fetch(`${API_URL}/api/veiculos/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert("✅ Utilitário cadastrado com sucesso!");
+          fecharModal('modal-veiculo');
+          carregarDashboard();
+          carregarTabelaFrota();
+        } else { alert(`❌ Erro ao salvar: ${data.detail || 'Verifique os campos'}`); }
+      } catch (err) { alert("Servidor Python offline."); }
+    });
+
+    document.getElementById('form-cad-transp').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const payload = {
+        razao_social: document.getElementById('cad-t-razao').value,
+        cnpj: document.getElementById('cad-t-cnpj').value,
+        email: document.getElementById('cad-t-email').value,
+        telefone: document.getElementById('cad-t-fone').value
+      };
+      try {
+        const res = await fetch(`${API_URL}/api/transportadoras/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert("✅ Transportadora cadastrada com sucesso!");
+          fecharModal('modal-transportadora');
+        } else { alert(`❌ Erro: ${data.detail}`); }
+      } catch (err) { alert("Servidor Python offline."); }
+    });
+
+    document.getElementById('form-cad-contrato').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const payload = {
+        veiculo_id: parseInt(document.getElementById('cad-c-veiculo').value),
+        transportadora_id: parseInt(document.getElementById('cad-c-transp').value),
+        km_inicial: parseInt(document.getElementById('cad-c-kminicial').value),
+        franquia_km_mensal: parseInt(document.getElementById('cad-c-franquia').value),
+        valor_km_excedente: parseFloat(document.getElementById('cad-c-excedente').value),
+        valor_mensalidade: parseFloat(document.getElementById('cad-c-valor').value),
+        dia_vencimento_fatura: parseInt(document.getElementById('cad-c-venc').value),
+        data_inicio: new Date().toISOString().split('T')[0]
+      };
+      try {
+        const res = await fetch(`${API_URL}/api/contratos/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert("✅ Contrato ativado com sucesso!");
+          fecharModal('modal-contrato');
+          carregarDashboard();
+          carregarTabelaContratos();
+        } else { alert(`❌ Erro: ${data.detail || 'Verifique se os IDs do Veículo e da Transportadora existem'}`); }
+      } catch (err) { alert("Servidor Python offline."); }
+    });
+
+    document.getElementById('form-cad-custo').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const payload = {
+        veiculo_id: parseInt(document.getElementById('cad-cust-veiculo').value),
+        descricao: document.getElementById('cad-cust-desc').value,
+        tipo_custo: document.getElementById('cad-cust-tipo').value,
+        mes_referencia: parseInt(document.getElementById('cad-cust-mes').value),
+        ano_referencia: parseInt(document.getElementById('cad-cust-ano').value),
+        valor_mensal: parseFloat(document.getElementById('cad-cust-valor').value),
+        dia_vencimento: parseInt(document.getElementById('cad-cust-venc').value)
+      };
+      try {
+        const res = await fetch(`${API_URL}/api/custos-fixos/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert("✅ Custo fixo registrado com sucesso!");
+          fecharModal('modal-custo');
+          carregarDashboard();
+          carregarTabelaCustos();
+        } else { alert(`❌ Erro: ${data.detail || 'Verifique se o ID do veículo existe'}`); }
+      } catch (err) { alert("Servidor Python offline."); }
+    });
+
+    window.onload = () => {
+      lucide.createIcons();
+      carregarDashboard();
+    };
+  </script>
+</body>
+</html>

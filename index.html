@@ -35,7 +35,38 @@
 </head>
 <body class="bg-dark-bg text-dark-text font-sans antialiased">
 
-  <div class="flex h-screen overflow-hidden">
+  <!-- TELA DE LOGIN -->
+  <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-brand-navyDarker">
+    <div class="w-full max-w-sm bg-dark-card border border-dark-border rounded-xl shadow-2xl p-8">
+      <div class="flex flex-col items-center mb-6">
+        <div class="flex items-center space-x-2 mb-2">
+          <i data-lucide="truck" class="w-8 h-8 text-brand-green"></i>
+          <span class="text-2xl font-bold italic tracking-wider text-dark-text">
+            Log<span class="text-brand-green">mais</span>
+          </span>
+        </div>
+        <p class="text-sm text-dark-subtext">Acesse sua conta para continuar</p>
+      </div>
+      <form id="form-login" class="space-y-4">
+        <div>
+          <label class="block text-xs text-dark-subtext mb-1">Usuário</label>
+          <input id="login-username" type="text" required autocomplete="username"
+            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-dark-text outline-none focus:border-brand-green">
+        </div>
+        <div>
+          <label class="block text-xs text-dark-subtext mb-1">Senha</label>
+          <input id="login-password" type="password" required autocomplete="current-password"
+            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-dark-text outline-none focus:border-brand-green">
+        </div>
+        <p id="login-erro" class="text-xs text-red-400 hidden">Usuário ou senha incorretos.</p>
+        <button type="submit" class="w-full bg-brand-green hover:bg-brand-greenHover text-white font-semibold py-2.5 rounded-lg transition">
+          Entrar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="app-container" class="flex h-screen overflow-hidden hidden">
 
     <!-- SIDEBAR -->
     <aside class="w-64 bg-brand-navyDarker text-white flex flex-col justify-between shrink-0 shadow-xl border-r border-dark-border">
@@ -77,12 +108,18 @@
         </nav>
       </div>
 
-      <div class="p-4 border-t border-dark-border text-xs text-dark-subtext flex items-center justify-between bg-dark-bg/30">
-        <div>
-          <p class="font-semibold text-dark-text">Logmais Fleet v2.1</p>
-          <p>Conexão Ativa</p>
+      <div class="p-4 border-t border-dark-border text-xs text-dark-subtext bg-dark-bg/30">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <p class="font-semibold text-dark-text">Logmais Fleet v2.1</p>
+            <p id="sidebar-usuario">Conexão Ativa</p>
+          </div>
+          <i data-lucide="shield-check" class="w-5 h-5 text-brand-green"></i>
         </div>
-        <i data-lucide="shield-check" class="w-5 h-5 text-brand-green"></i>
+        <button onclick="logout()" class="w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-lg text-red-400 hover:bg-red-500/10 transition text-xs font-semibold">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+          <span>Sair</span>
+        </button>
       </div>
     </aside>
 
@@ -557,6 +594,99 @@
   <script>
     const API_URL = "https://locadora-fl-production.up.railway.app";
 
+    // --- AUTENTICAÇÃO ---
+    function getToken() { return localStorage.getItem('access_token'); }
+    function setToken(token) { localStorage.setItem('access_token', token); }
+    function clearToken() { localStorage.removeItem('access_token'); }
+
+    function logout() {
+      clearToken();
+      mostrarLogin();
+    }
+
+    function mostrarLogin() {
+      document.getElementById('login-screen').classList.remove('hidden');
+      document.getElementById('app-container').classList.add('hidden');
+    }
+
+    function mostrarApp(usuario) {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('app-container').classList.remove('hidden');
+      if (usuario) {
+        document.getElementById('sidebar-usuario').innerText = usuario.nome_completo || usuario.username;
+      }
+      lucide.createIcons();
+      carregarDashboard();
+    }
+
+    // Intercepta todas as chamadas fetch feitas para a API para anexar o token JWT
+    // e redirecionar para a tela de login automaticamente em caso de sessão expirada.
+    const _originalFetch = window.fetch.bind(window);
+    window.fetch = function (url, options = {}) {
+      const isApiCall = typeof url === 'string' && url.startsWith(API_URL);
+      if (isApiCall) {
+        options = { ...options, headers: { ...(options.headers || {}) } };
+        const token = getToken();
+        if (token) options.headers['Authorization'] = `Bearer ${token}`;
+      }
+      return _originalFetch(url, options).then(res => {
+        if (isApiCall && res.status === 401) {
+          mostrarLogin();
+        }
+        return res;
+      });
+    };
+
+    document.getElementById('form-login').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const username = document.getElementById('login-username').value;
+      const password = document.getElementById('login-password').value;
+      const erroEl = document.getElementById('login-erro');
+      erroEl.classList.add('hidden');
+
+      try {
+        const body = new URLSearchParams();
+        body.append('username', username);
+        body.append('password', password);
+
+        const res = await fetch(`${API_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body
+        });
+
+        if (!res.ok) {
+          erroEl.classList.remove('hidden');
+          return;
+        }
+
+        const data = await res.json();
+        setToken(data.access_token);
+
+        const meRes = await fetch(`${API_URL}/api/auth/me`);
+        const usuario = meRes.ok ? await meRes.json() : null;
+        mostrarApp(usuario);
+      } catch (err) {
+        erroEl.innerText = "Servidor Python offline.";
+        erroEl.classList.remove('hidden');
+      }
+    });
+
+    async function verificarSessao() {
+      const token = getToken();
+      if (!token) { mostrarLogin(); return; }
+      try {
+        const res = await fetch(`${API_URL}/api/auth/me`);
+        if (res.ok) {
+          mostrarApp(await res.json());
+        } else {
+          mostrarLogin();
+        }
+      } catch (err) {
+        mostrarLogin();
+      }
+    }
+
     function abrirModal(id) { document.getElementById(id).classList.remove('hidden'); }
     function fecharModal(id) { document.getElementById(id).classList.add('hidden'); }
 
@@ -849,7 +979,7 @@
 
     window.onload = () => {
       lucide.createIcons();
-      carregarDashboard();
+      verificarSessao();
     };
   </script>
 </body>

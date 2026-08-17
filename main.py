@@ -3,13 +3,15 @@ import os
 from fastapi import FastAPI, HTTPException, Depends, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 
+import auth
 import models
 import schemas
-from database import engine, get_db
+from database import engine, get_db, SessionLocal
 
 # Recria as tabelas no banco de dados SQLite
 models.Base.metadata.create_all(bind=engine)
@@ -28,6 +30,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.on_event("startup")
+def seed_admin_on_startup():
+    db = SessionLocal()
+    try:
+        auth.seed_default_admin(db)
+    finally:
+        db.close()
+
+
 @app.get("/")
 def home():
     # Serve o frontend (index.html) na raiz do domínio
@@ -38,12 +50,50 @@ def home():
 def status_api():
     return {"message": "Logmais Fleet API online", "status": "active"}
 
+# AUTENTICAÇÃO
+@app.post("/api/auth/login", response_model=schemas.Token, tags=["Autenticação"])
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = auth.authenticate_user(db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário ou senha incorretos.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = auth.create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/api/auth/me", response_model=schemas.UserResponse, tags=["Autenticação"])
+def read_current_user(current_user: models.Usuario = Depends(auth.get_current_user)):
+    return current_user
+
+@app.post("/api/auth/users", response_model=schemas.UserResponse, tags=["Autenticação"])
+def criar_usuario(
+    novo_usuario: schemas.UserCreate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    usuario_existente = db.query(models.Usuario).filter(models.Usuario.username == novo_usuario.username).first()
+    if usuario_existente:
+        raise HTTPException(status_code=400, detail="Nome de usuário já cadastrado.")
+
+    usuario = models.Usuario(
+        username=novo_usuario.username,
+        hashed_password=auth.get_password_hash(novo_usuario.password),
+        nome_completo=novo_usuario.nome_completo,
+    )
+    db.add(usuario)
+    db.commit()
+    db.refresh(usuario)
+    return usuario
+
 # DASHBOARD COM FILTRO TEMPORAL
 @app.get("/api/dashboard/resumo", tags=["Dashboard"])
 def get_dashboard_summary(
     mes: Optional[int] = Query(None, ge=1, le=12),
     ano: Optional[int] = Query(None, ge=2020, le=2030),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
 ):
     total_veiculos = db.query(models.Veiculo).count()
     veiculos_alocados = db.query(models.Veiculo).filter(models.Veiculo.status == "ALOCADO").count()
@@ -104,7 +154,7 @@ def get_dashboard_summary(
 
 # CRUD VEÍCULOS
 @app.post("/api/veiculos/", response_model=schemas.VeiculoResponse, tags=["Veículos"])
-def criar_veiculo(veiculo: schemas.VeiculoCreate, db: Session = Depends(get_db)):
+def criar_veiculo(veiculo: schemas.VeiculoCreate, db: Session = Depends(get_db), current_user: models.Usuario = Depends(auth.get_current_user)):
     veiculo_existente = db.query(models.Veiculo).filter(models.Veiculo.placa == veiculo.placa).first()
     if veiculo_existente:
         raise HTTPException(status_code=400, detail="Veículo com esta placa já cadastrado.")
@@ -116,12 +166,12 @@ def criar_veiculo(veiculo: schemas.VeiculoCreate, db: Session = Depends(get_db))
     return novo_veiculo
 
 @app.get("/api/veiculos/", response_model=List[schemas.VeiculoResponse], tags=["Veículos"])
-def listar_veiculos(db: Session = Depends(get_db)):
+def listar_veiculos(db: Session = Depends(get_db), current_user: models.Usuario = Depends(auth.get_current_user)):
     return db.query(models.Veiculo).all()
 
 # CRUD TRANSPORTADORAS
 @app.post("/api/transportadoras/", response_model=schemas.TransportadoraResponse, tags=["Transportadoras"])
-def criar_transportadora(transportadora: schemas.TransportadoraCreate, db: Session = Depends(get_db)):
+def criar_transportadora(transportadora: schemas.TransportadoraCreate, db: Session = Depends(get_db), current_user: models.Usuario = Depends(auth.get_current_user)):
     nova_transp = models.Transportadora(**transportadora.model_dump())
     db.add(nova_transp)
     db.commit()
@@ -129,12 +179,12 @@ def criar_transportadora(transportadora: schemas.TransportadoraCreate, db: Sessi
     return nova_transp
 
 @app.get("/api/transportadoras/", response_model=List[schemas.TransportadoraResponse], tags=["Transportadoras"])
-def listar_transportadoras(db: Session = Depends(get_db)):
+def listar_transportadoras(db: Session = Depends(get_db), current_user: models.Usuario = Depends(auth.get_current_user)):
     return db.query(models.Transportadora).all()
 
 # CRUD CONTRATOS
 @app.post("/api/contratos/", response_model=schemas.ContratoResponse, tags=["Contratos"])
-def criar_contrato(contrato: schemas.ContratoCreate, db: Session = Depends(get_db)):
+def criar_contrato(contrato: schemas.ContratoCreate, db: Session = Depends(get_db), current_user: models.Usuario = Depends(auth.get_current_user)):
     veiculo = db.query(models.Veiculo).filter(models.Veiculo.id == contrato.veiculo_id).first()
     if not veiculo:
         raise HTTPException(status_code=404, detail=f"Veículo com ID {contrato.veiculo_id} não encontrado no banco.")
@@ -147,12 +197,12 @@ def criar_contrato(contrato: schemas.ContratoCreate, db: Session = Depends(get_d
     return novo_contrato
 
 @app.get("/api/contratos/", response_model=List[schemas.ContratoResponse], tags=["Contratos"])
-def listar_contratos(db: Session = Depends(get_db)):
+def listar_contratos(db: Session = Depends(get_db), current_user: models.Usuario = Depends(auth.get_current_user)):
     return db.query(models.Contrato).all()
 
 # CHECKLIST COMPLETO
 @app.post("/api/checklists/", tags=["Checklists"])
-def registrar_checklist(checklist: schemas.ChecklistCreate, db: Session = Depends(get_db)):
+def registrar_checklist(checklist: schemas.ChecklistCreate, db: Session = Depends(get_db), current_user: models.Usuario = Depends(auth.get_current_user)):
     veiculo = db.query(models.Veiculo).filter(models.Veiculo.id == checklist.veiculo_id).first()
     if not veiculo:
         raise HTTPException(status_code=404, detail=f"Veículo ID {checklist.veiculo_id} não encontrado.")
@@ -181,7 +231,7 @@ def registrar_checklist(checklist: schemas.ChecklistCreate, db: Session = Depend
 
 # CUSTOS FIXOS
 @app.post("/api/custos-fixos/", response_model=schemas.CustoFixoResponse, tags=["Financeiro Locadora"])
-def cadastrar_custo_fixo(custo: schemas.CustoFixoCreate, db: Session = Depends(get_db)):
+def cadastrar_custo_fixo(custo: schemas.CustoFixoCreate, db: Session = Depends(get_db), current_user: models.Usuario = Depends(auth.get_current_user)):
     novo_custo = models.CustoFixoVeiculo(**custo.model_dump())
     db.add(novo_custo)
     db.commit()
@@ -189,5 +239,5 @@ def cadastrar_custo_fixo(custo: schemas.CustoFixoCreate, db: Session = Depends(g
     return novo_custo
 
 @app.get("/api/custos-fixos/", response_model=List[schemas.CustoFixoResponse], tags=["Financeiro Locadora"])
-def listar_custos_fixos(db: Session = Depends(get_db)):
+def listar_custos_fixos(db: Session = Depends(get_db), current_user: models.Usuario = Depends(auth.get_current_user)):
     return db.query(models.CustoFixoVeiculo).all()

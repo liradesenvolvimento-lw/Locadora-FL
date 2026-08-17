@@ -2,6 +2,25 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime
 
+# AUTENTICAÇÃO
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    nome_completo: Optional[str] = None
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    nome_completo: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
 # TRANSPORTADORA
 class TransportadoraBase(BaseModel):
     razao_social: str

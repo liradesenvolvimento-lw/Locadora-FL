@@ -3,6 +3,17 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
 
+class Usuario(Base):
+    __tablename__ = "usuarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    nome_completo = Column(String(150), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Transportadora(Base):
     __tablename__ = "transportadoras"
 

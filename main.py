@@ -87,6 +87,44 @@ def criar_usuario(
     db.refresh(usuario)
     return usuario
 
+@app.get("/api/auth/users", response_model=List[schemas.UserResponse], tags=["Autenticação"])
+def listar_usuarios(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    return db.query(models.Usuario).all()
+
+@app.patch("/api/auth/users/me/password", tags=["Autenticação"])
+def trocar_minha_senha(
+    dados: schemas.PasswordChange,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    if not auth.verify_password(dados.senha_atual, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Senha atual incorreta.")
+
+    current_user.hashed_password = auth.get_password_hash(dados.nova_senha)
+    db.commit()
+    return {"status": "sucesso", "mensagem": "Senha atualizada com sucesso."}
+
+@app.patch("/api/auth/users/{usuario_id}/status", response_model=schemas.UserResponse, tags=["Autenticação"])
+def atualizar_status_usuario(
+    usuario_id: int,
+    dados: schemas.UserStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    if usuario.id == current_user.id and not dados.is_active:
+        raise HTTPException(status_code=400, detail="Você não pode desativar sua própria conta.")
+
+    usuario.is_active = dados.is_active
+    db.commit()
+    db.refresh(usuario)
+    return usuario
+
 # DASHBOARD COM FILTRO TEMPORAL
 @app.get("/api/dashboard/resumo", tags=["Dashboard"])
 def get_dashboard_summary(

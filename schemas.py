@@ -21,6 +21,13 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
+class PasswordChange(BaseModel):
+    senha_atual: str
+    nova_senha: str
+
+class UserStatusUpdate(BaseModel):
+    is_active: bool
+
 # TRANSPORTADORA
 class TransportadoraBase(BaseModel):
     razao_social: str

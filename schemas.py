@@ -104,7 +104,6 @@ class CustoFixoBase(BaseModel):
     parcelas_totais: int = 1
     parcela_atual: int = 1
     status: str = "ATIVO"
-
 class CustoFixoCreate(CustoFixoBase):
     pass
 

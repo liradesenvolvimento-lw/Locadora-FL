@@ -1,5 +1,8 @@
+import os
+
 from fastapi import FastAPI, HTTPException, Depends, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -27,6 +30,12 @@ app.add_middleware(
 
 @app.get("/")
 def home():
+    # Serve o frontend (index.html) na raiz do domínio
+    index_path = os.path.join(os.path.dirname(__file__), "index.html")
+    return FileResponse(index_path)
+
+@app.get("/api/status", tags=["Status"])
+def status_api():
     return {"message": "Logmais Fleet API online", "status": "active"}
 
 # DASHBOARD COM FILTRO TEMPORAL

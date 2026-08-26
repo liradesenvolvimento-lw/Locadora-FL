@@ -1,9 +1,10 @@
 import os
 
-from fastapi import FastAPI, HTTPException, Depends, Query, status
+from fastapi import FastAPI, HTTPException, Depends, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
@@ -29,6 +30,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Rede de segurança: qualquer violação de integridade do banco (ex.: FK/unique
+# não capturada por uma validação explícita em uma rota) deve retornar um JSON
+# 400 legível em vez de um erro 500 em texto puro, que quebra o `res.json()`
+# no frontend e é exibido como "Servidor Python offline".
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Operação inválida: um dos IDs referenciados não existe ou o registro já está cadastrado."},
+    )
 
 
 @app.on_event("startup")
@@ -226,7 +239,11 @@ def criar_contrato(contrato: schemas.ContratoCreate, db: Session = Depends(get_d
     veiculo = db.query(models.Veiculo).filter(models.Veiculo.id == contrato.veiculo_id).first()
     if not veiculo:
         raise HTTPException(status_code=404, detail=f"Veículo com ID {contrato.veiculo_id} não encontrado no banco.")
-    
+
+    transportadora = db.query(models.Transportadora).filter(models.Transportadora.id == contrato.transportadora_id).first()
+    if not transportadora:
+        raise HTTPException(status_code=404, detail=f"Transportadora com ID {contrato.transportadora_id} não encontrada no banco.")
+
     veiculo.status = "ALOCADO"
     novo_contrato = models.Contrato(**contrato.model_dump())
     db.add(novo_contrato)
@@ -244,6 +261,11 @@ def registrar_checklist(checklist: schemas.ChecklistCreate, db: Session = Depend
     veiculo = db.query(models.Veiculo).filter(models.Veiculo.id == checklist.veiculo_id).first()
     if not veiculo:
         raise HTTPException(status_code=404, detail=f"Veículo ID {checklist.veiculo_id} não encontrado.")
+
+    if checklist.contrato_id is not None:
+        contrato = db.query(models.Contrato).filter(models.Contrato.id == checklist.contrato_id).first()
+        if not contrato:
+            raise HTTPException(status_code=404, detail=f"Contrato ID {checklist.contrato_id} não encontrado.")
 
     veiculo.km_atual = checklist.km_registrado
     
@@ -270,6 +292,10 @@ def registrar_checklist(checklist: schemas.ChecklistCreate, db: Session = Depend
 # CUSTOS FIXOS
 @app.post("/api/custos-fixos/", response_model=schemas.CustoFixoResponse, tags=["Financeiro Locadora"])
 def cadastrar_custo_fixo(custo: schemas.CustoFixoCreate, db: Session = Depends(get_db), current_user: models.Usuario = Depends(auth.get_current_user)):
+    veiculo = db.query(models.Veiculo).filter(models.Veiculo.id == custo.veiculo_id).first()
+    if not veiculo:
+        raise HTTPException(status_code=404, detail=f"Veículo com ID {custo.veiculo_id} não encontrado no banco.")
+
     novo_custo = models.CustoFixoVeiculo(**custo.model_dump())
     db.add(novo_custo)
     db.commit()

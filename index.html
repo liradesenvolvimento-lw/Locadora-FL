@@ -35,6 +35,10 @@
 </head>
 <body class="bg-dark-bg text-dark-text font-sans antialiased">
 
+  <!-- CONTAINER DE NOTIFICAÇÕES (substitui os alert() nativos do navegador) -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-80 max-w-[90vw] pointer-events-none"></div>
+
+
   <!-- TELA DE LOGIN -->
   <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-brand-navyDarker">
     <div class="w-full max-w-sm bg-dark-card border border-dark-border rounded-xl shadow-2xl p-8">
@@ -339,7 +343,7 @@
             </div>
             <div class="flex space-x-3">
               <button onclick="abrirModal('modal-transportadora')" class="border border-dark-border hover:bg-brand-navy text-dark-text font-semibold px-4 py-2 rounded-lg text-xs">Nova Transportadora</button>
-              <button onclick="abrirModal('modal-contrato')" class="bg-brand-green hover:bg-brand-greenHover text-brand-navy font-bold px-4 py-2 rounded-lg text-xs flex items-center space-x-2">
+              <button onclick="abrirModalContrato()" class="bg-brand-green hover:bg-brand-greenHover text-brand-navy font-bold px-4 py-2 rounded-lg text-xs flex items-center space-x-2">
                 <i data-lucide="plus" class="w-4 h-4"></i><span>Novo Contrato</span>
               </button>
             </div>
@@ -396,7 +400,7 @@
               <h2 class="text-lg font-bold text-dark-text">Custos Fixos & Contas a Pagar por Utilitário</h2>
               <p class="text-xs text-dark-subtext">Lançamento por mês e ano para DRE real da empresa.</p>
             </div>
-            <button onclick="abrirModal('modal-custo')" class="bg-brand-green hover:bg-brand-greenHover text-brand-navy font-bold px-4 py-2 rounded-lg text-xs flex items-center space-x-2">
+            <button onclick="abrirModalCusto()" class="bg-brand-green hover:bg-brand-greenHover text-brand-navy font-bold px-4 py-2 rounded-lg text-xs flex items-center space-x-2">
               <i data-lucide="plus" class="w-4 h-4"></i><span>Adicionar Custo Fixo</span>
             </button>
           </div>
@@ -503,12 +507,12 @@
       <h3 class="text-lg font-bold text-dark-text mb-4">Novo Contrato de Locação</h3>
       <form id="form-cad-contrato" class="space-y-3">
         <div>
-          <label class="text-xs font-semibold text-dark-subtext">ID do Veículo Cadastrado</label>
-          <input id="cad-c-veiculo" type="number" placeholder="Ex: 1" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+          <label class="text-xs font-semibold text-dark-subtext">Veículo</label>
+          <select id="cad-c-veiculo" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required></select>
         </div>
         <div>
-          <label class="text-xs font-semibold text-dark-subtext">ID da Transportadora Cadastrada</label>
-          <input id="cad-c-transp" type="number" placeholder="Ex: 1" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+          <label class="text-xs font-semibold text-dark-subtext">Transportadora</label>
+          <select id="cad-c-transp" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required></select>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -548,8 +552,8 @@
       <h3 class="text-lg font-bold text-dark-text mb-4">Adicionar Custo Fixo por Veículo</h3>
       <form id="form-cad-custo" class="space-y-3">
         <div>
-          <label class="text-xs font-semibold text-dark-subtext">ID do Veículo</label>
-          <input id="cad-cust-veiculo" type="number" placeholder="Ex: 1" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required>
+          <label class="text-xs font-semibold text-dark-subtext">Veículo</label>
+          <select id="cad-cust-veiculo" class="w-full bg-dark-bg border border-dark-border text-dark-text rounded-lg p-2.5 text-xs outline-none" required></select>
         </div>
         <div>
           <label class="text-xs font-semibold text-dark-subtext">Descrição Custo</label>
@@ -593,6 +597,74 @@
   <!-- JAVASCRIPT INTEGRADO COM TRATAMENTO DE ERRO -->
   <script>
     const API_URL = "https://locadora-fl-production.up.railway.app";
+
+    // --- SISTEMA DE NOTIFICAÇÕES (TOASTS) ---
+    // Substitui os alert()/confirm() nativos do navegador por um componente próprio.
+    function toast(message, type = 'info', duration = 4500) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const variants = {
+        success: { border: 'border-brand-green', icon: 'check-circle-2', iconColor: 'text-brand-green' },
+        error:   { border: 'border-red-500',      icon: 'x-circle',       iconColor: 'text-red-400' },
+        warning: { border: 'border-amber-500',    icon: 'alert-triangle', iconColor: 'text-amber-400' },
+        info:    { border: 'border-dark-border',  icon: 'info',           iconColor: 'text-sky-400' }
+      };
+      const v = variants[type] || variants.info;
+
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto flex items-start gap-3 bg-dark-card border ${v.border} rounded-lg shadow-2xl p-3.5 text-sm text-dark-text opacity-0 translate-x-4 transition-all duration-300 ease-out`;
+      el.innerHTML = `
+        <i data-lucide="${v.icon}" class="w-5 h-5 shrink-0 mt-0.5 ${v.iconColor}"></i>
+        <span class="flex-1 leading-snug break-words">${message}</span>
+        <button type="button" aria-label="Fechar" class="shrink-0 text-dark-subtext hover:text-dark-text transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      `;
+      container.appendChild(el);
+      lucide.createIcons();
+
+      let dismissed = false;
+      const remove = () => {
+        if (dismissed) return;
+        dismissed = true;
+        el.classList.add('opacity-0', 'translate-x-4');
+        setTimeout(() => el.remove(), 300);
+      };
+      el.querySelector('button').addEventListener('click', remove);
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        el.classList.remove('opacity-0', 'translate-x-4');
+      }));
+
+      if (duration > 0) setTimeout(remove, duration);
+    }
+
+    // Substitui window.confirm() por um modal próprio; retorna uma Promise<boolean>.
+    function confirmarAcao(mensagem, { titulo = 'Confirmar ação', textoConfirmar = 'Confirmar', textoCancelar = 'Cancelar' } = {}) {
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-[110] flex items-center justify-center p-4';
+        overlay.innerHTML = `
+          <div class="bg-dark-card border border-dark-border rounded-2xl p-6 w-full max-w-sm">
+            <h3 class="text-lg font-bold text-dark-text mb-2">${titulo}</h3>
+            <p class="text-sm text-dark-subtext mb-6">${mensagem}</p>
+            <div class="flex justify-end space-x-3">
+              <button type="button" data-acao="cancelar" class="px-4 py-2 border border-dark-border rounded-lg text-xs">${textoCancelar}</button>
+              <button type="button" data-acao="confirmar" class="px-4 py-2 bg-brand-green text-brand-navy font-bold rounded-lg text-xs">${textoConfirmar}</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', (e) => {
+          const acao = e.target.closest('[data-acao]')?.dataset.acao;
+          if (acao) {
+            overlay.remove();
+            resolve(acao === 'confirmar');
+          }
+        });
+      });
+    }
 
     // --- AUTENTICAÇÃO ---
     function getToken() { return localStorage.getItem('access_token'); }
@@ -784,6 +856,32 @@
       }
     }
 
+    async function abrirModalContrato() {
+      const [resVeiculos, resTransp] = await Promise.all([
+        fetch(`${API_URL}/api/veiculos/`),
+        fetch(`${API_URL}/api/transportadoras/`)
+      ]);
+      const veiculos = await resVeiculos.json();
+      const transportadoras = await resTransp.json();
+
+      const selVeiculo = document.getElementById('cad-c-veiculo');
+      const selTransp = document.getElementById('cad-c-transp');
+
+      if (veiculos.length === 0) {
+        selVeiculo.innerHTML = `<option value="">Nenhum veículo cadastrado</option>`;
+      } else {
+        selVeiculo.innerHTML = veiculos.map(v => `<option value="${v.id}">${v.placa} - ${v.modelo}</option>`).join('');
+      }
+
+      if (transportadoras.length === 0) {
+        selTransp.innerHTML = `<option value="">Nenhuma transportadora cadastrada</option>`;
+      } else {
+        selTransp.innerHTML = transportadoras.map(t => `<option value="${t.id}">${t.nome_fantasia || t.razao_social}</option>`).join('');
+      }
+
+      abrirModal('modal-contrato');
+    }
+
     async function carregarTabelaContratos() {
       const res = await fetch(`${API_URL}/api/contratos/`);
       const list = await res.json();
@@ -821,6 +919,18 @@
       }).join('');
     }
 
+    async function abrirModalCusto() {
+      const res = await fetch(`${API_URL}/api/veiculos/`);
+      const veiculos = await res.json();
+      const sel = document.getElementById('cad-cust-veiculo');
+      if (veiculos.length === 0) {
+        sel.innerHTML = `<option value="">Nenhum veículo cadastrado</option>`;
+      } else {
+        sel.innerHTML = veiculos.map(v => `<option value="${v.id}">${v.placa} - ${v.modelo}</option>`).join('');
+      }
+      abrirModal('modal-custo');
+    }
+
     async function carregarTabelaCustos() {
       const res = await fetch(`${API_URL}/api/custos-fixos/`);
       const list = await res.json();
@@ -840,7 +950,7 @@
     document.getElementById('form-checklist-completo').addEventListener('submit', async function(e) {
       e.preventDefault();
       const veiculoId = document.getElementById('chk-veiculo').value;
-      if (!veiculoId) { alert("Cadastre ao menos um veículo antes de registrar o checklist!"); return; }
+      if (!veiculoId) { toast("Cadastre ao menos um veículo antes de registrar o checklist!", "warning"); return; }
 
       const payload = {
         veiculo_id: parseInt(veiculoId),
@@ -865,11 +975,11 @@
         });
         const data = await res.json();
         if (res.ok) {
-          alert(`✅ ${data.mensagem}`);
+          toast(data.mensagem, "success");
           document.getElementById('chk-km').value = '';
           carregarDashboard();
-        } else { alert(`❌ Erro: ${data.detail || 'Falha ao salvar'}`); }
-      } catch (err) { alert("Servidor offline. Verifique o terminal CMD."); }
+        } else { toast(data.detail || 'Falha ao salvar', "error"); }
+      } catch (err) { toast("Servidor offline. Verifique se a API está no ar.", "error"); }
     });
 
     // FORMULÁRIOS DE MODAIS COM ALERTAS DETALHADOS
@@ -892,12 +1002,12 @@
         });
         const data = await res.json();
         if (res.ok) {
-          alert("✅ Utilitário cadastrado com sucesso!");
+          toast("Utilitário cadastrado com sucesso!", "success");
           fecharModal('modal-veiculo');
           carregarDashboard();
           carregarTabelaFrota();
-        } else { alert(`❌ Erro ao salvar: ${data.detail || 'Verifique os campos'}`); }
-      } catch (err) { alert("Servidor Python offline."); }
+        } else { toast(data.detail || 'Verifique os campos', "error"); }
+      } catch (err) { toast("Não foi possível conectar ao servidor.", "error"); }
     });
 
     document.getElementById('form-cad-transp').addEventListener('submit', async function(e) {
@@ -916,17 +1026,23 @@
         });
         const data = await res.json();
         if (res.ok) {
-          alert("✅ Transportadora cadastrada com sucesso!");
+          toast("Transportadora cadastrada com sucesso!", "success");
           fecharModal('modal-transportadora');
-        } else { alert(`❌ Erro: ${data.detail}`); }
-      } catch (err) { alert("Servidor Python offline."); }
+        } else { toast(data.detail || 'Verifique os campos', "error"); }
+      } catch (err) { toast("Não foi possível conectar ao servidor.", "error"); }
     });
 
     document.getElementById('form-cad-contrato').addEventListener('submit', async function(e) {
       e.preventDefault();
+      const veiculoIdVal = document.getElementById('cad-c-veiculo').value;
+      const transpIdVal = document.getElementById('cad-c-transp').value;
+      if (!veiculoIdVal || !transpIdVal) {
+        toast("Cadastre ao menos um Veículo e uma Transportadora antes de criar um contrato!", "warning");
+        return;
+      }
       const payload = {
-        veiculo_id: parseInt(document.getElementById('cad-c-veiculo').value),
-        transportadora_id: parseInt(document.getElementById('cad-c-transp').value),
+        veiculo_id: parseInt(veiculoIdVal),
+        transportadora_id: parseInt(transpIdVal),
         km_inicial: parseInt(document.getElementById('cad-c-kminicial').value),
         franquia_km_mensal: parseInt(document.getElementById('cad-c-franquia').value),
         valor_km_excedente: parseFloat(document.getElementById('cad-c-excedente').value),
@@ -942,18 +1058,23 @@
         });
         const data = await res.json();
         if (res.ok) {
-          alert("✅ Contrato ativado com sucesso!");
+          toast("Contrato ativado com sucesso!", "success");
           fecharModal('modal-contrato');
           carregarDashboard();
           carregarTabelaContratos();
-        } else { alert(`❌ Erro: ${data.detail || 'Verifique se os IDs do Veículo e da Transportadora existem'}`); }
-      } catch (err) { alert("Servidor Python offline."); }
+        } else { toast(data.detail || 'Verifique se os IDs do Veículo e da Transportadora existem', "error"); }
+      } catch (err) { toast("Não foi possível conectar ao servidor.", "error"); }
     });
 
     document.getElementById('form-cad-custo').addEventListener('submit', async function(e) {
       e.preventDefault();
+      const veiculoIdVal = document.getElementById('cad-cust-veiculo').value;
+      if (!veiculoIdVal) {
+        toast("Cadastre ao menos um veículo antes de registrar um custo fixo!", "warning");
+        return;
+      }
       const payload = {
-        veiculo_id: parseInt(document.getElementById('cad-cust-veiculo').value),
+        veiculo_id: parseInt(veiculoIdVal),
         descricao: document.getElementById('cad-cust-desc').value,
         tipo_custo: document.getElementById('cad-cust-tipo').value,
         mes_referencia: parseInt(document.getElementById('cad-cust-mes').value),
@@ -969,16 +1090,127 @@
         });
         const data = await res.json();
         if (res.ok) {
-          alert("✅ Custo fixo registrado com sucesso!");
+          toast("Custo fixo registrado com sucesso!", "success");
           fecharModal('modal-custo');
           carregarDashboard();
           carregarTabelaCustos();
-        } else { alert(`❌ Erro: ${data.detail || 'Verifique se o ID do veículo existe'}`); }
-      } catch (err) { alert("Servidor Python offline."); }
+        } else { toast(data.detail || 'Verifique se o ID do veículo existe', "error"); }
+      } catch (err) { toast("Não foi possível conectar ao servidor.", "error"); }
     });
+
+    // --- CUSTOM SELECT (substitui o dropdown nativo feio do navegador) ---
+    // Mantém o <select> original no DOM (oculto via sr-only) para preservar
+    // value/eventos/validação, e desenha por cima um botão + lista customizados
+    // com o mesmo tema dark do app. Um MutationObserver mantém a lista em dia
+    // sempre que as opções do select forem reescritas dinamicamente (ex: os
+    // selects de veículo/transportadora populados após um fetch).
+    function enhanceAllSelects(root = document) {
+      root.querySelectorAll('select').forEach(setupCustomSelect);
+    }
+
+    function fecharTodosCustomSelects(exceto = null) {
+      document.querySelectorAll('.custom-select-list').forEach(list => {
+        if (list !== exceto) {
+          list.classList.add('hidden');
+          const chevron = list.parentElement.querySelector('.custom-select-chevron');
+          if (chevron) chevron.classList.remove('rotate-180');
+        }
+      });
+    }
+
+    function setupCustomSelect(select) {
+      if (select.dataset.enhanced === 'true') return;
+      select.dataset.enhanced = 'true';
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'custom-select relative';
+      select.parentNode.insertBefore(wrapper, select);
+      wrapper.appendChild(select);
+
+      // Remove a validação nativa "required" do select oculto (o valor ainda é
+      // lido normalmente pelo JS); os formulários já validam manualmente antes
+      // do envio, então isso evita o erro "elemento invisível não focável".
+      const eraRequired = select.required;
+      select.required = false;
+      select.classList.add('sr-only');
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `${select.className.replace('sr-only', '').trim()} flex items-center justify-between gap-2 cursor-pointer select-none text-left`;
+      button.dataset.customSelectButton = 'true';
+
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'truncate';
+      button.appendChild(labelSpan);
+
+      const chevron = document.createElement('i');
+      chevron.setAttribute('data-lucide', 'chevron-down');
+      chevron.className = 'custom-select-chevron w-3.5 h-3.5 shrink-0 text-dark-subtext transition-transform duration-150';
+      button.appendChild(chevron);
+
+      const list = document.createElement('div');
+      list.className = 'custom-select-list hidden absolute left-0 mt-1 z-50 w-max min-w-full max-w-xs max-h-56 overflow-y-auto whitespace-nowrap bg-dark-card border border-dark-border rounded-lg shadow-2xl py-1';
+
+      wrapper.appendChild(button);
+      wrapper.appendChild(list);
+
+      function renderOptions() {
+        list.innerHTML = '';
+        Array.from(select.options).forEach((opt, idx) => {
+          const item = document.createElement('div');
+          item.textContent = opt.textContent;
+          const isSelected = idx === select.selectedIndex;
+          item.className = `px-3 py-2 text-xs cursor-pointer transition ${
+            opt.disabled ? 'opacity-40 pointer-events-none' :
+            isSelected ? 'bg-brand-green/20 text-brand-green font-semibold' : 'text-dark-text hover:bg-brand-navy'
+          }`;
+          item.addEventListener('click', () => {
+            select.value = opt.value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            syncButtonLabel();
+            fecharTodosCustomSelects();
+          });
+          list.appendChild(item);
+        });
+      }
+
+      function syncButtonLabel() {
+        const selectedOption = select.options[select.selectedIndex];
+        labelSpan.textContent = selectedOption ? selectedOption.textContent : '';
+      }
+
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const estaAberta = !list.classList.contains('hidden');
+        fecharTodosCustomSelects();
+        if (!estaAberta) {
+          renderOptions();
+          list.classList.remove('hidden');
+          chevron.classList.add('rotate-180');
+        }
+      });
+
+      // Reconstrói a lista/label sempre que as opções do select mudam
+      // (ex.: após popular via fetch de veículos/transportadoras).
+      const observer = new MutationObserver(() => {
+        syncButtonLabel();
+        if (!list.classList.contains('hidden')) renderOptions();
+      });
+      observer.observe(select, { childList: true });
+
+      if (eraRequired) {
+        button.dataset.required = 'true';
+      }
+
+      syncButtonLabel();
+      lucide.createIcons();
+    }
+
+    document.addEventListener('click', () => fecharTodosCustomSelects());
 
     window.onload = () => {
       lucide.createIcons();
+      enhanceAllSelects();
       verificarSessao();
     };
   </script>

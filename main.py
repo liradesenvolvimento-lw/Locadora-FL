@@ -305,3 +305,11 @@ def cadastrar_custo_fixo(custo: schemas.CustoFixoCreate, db: Session = Depends(g
 @app.get("/api/custos-fixos/", response_model=List[schemas.CustoFixoResponse], tags=["Financeiro Locadora"])
 def listar_custos_fixos(db: Session = Depends(get_db), current_user: models.Usuario = Depends(auth.get_current_user)):
     return db.query(models.CustoFixoVeiculo).all()
+
+# Edição dos cadastros e consulta individual
+from editing import router as editing_router
+app.include_router(editing_router)
+
+@app.get("/editing.js", include_in_schema=False)
+def editing_script():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "editing.js"), media_type="text/javascript")

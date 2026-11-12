@@ -227,6 +227,7 @@
                   <th class="py-2">KM Atual</th>
                   <th class="py-2">Capacidade (KG)</th>
                   <th class="py-2">Status</th>
+                <th class="py-3">Ações</th>
                 </tr>
               </thead>
               <tbody id="tbl-dash-veiculos" class="divide-y divide-dark-border"></tbody>
@@ -258,6 +259,7 @@
                   <th class="py-3">Carga (KG)</th>
                   <th class="py-3">KM Atual</th>
                   <th class="py-3">Status</th>
+                <th class="py-3">Ações</th>
                 </tr>
               </thead>
               <tbody id="tbl-geral-veiculos" class="divide-y divide-dark-border"></tbody>
@@ -332,6 +334,11 @@
               </button>
             </form>
           </div>
+        <div class="bg-dark-card rounded-2xl border border-dark-border p-6 overflow-x-auto">
+            <h3 class="text-lg font-bold mb-4">Vistorias registradas</h3>
+            <table class="w-full text-left text-sm"><thead><tr><th class="py-3">Registro</th><th class="py-3">Veículo</th><th class="py-3">Tipo</th><th class="py-3">KM</th><th class="py-3">Ações</th></tr></thead>
+            <tbody id="tbl-edicao-checklists" class="divide-y divide-dark-border"></tbody></table>
+          </div>
         </div>
 
         <!-- 4. ABA CONTRATOS & CLIENTES -->
@@ -361,10 +368,16 @@
                   <th class="py-3">Mensalidade</th>
                   <th class="py-3">Vencimento</th>
                   <th class="py-3">Status</th>
+                <th class="py-3">Ações</th>
                 </tr>
               </thead>
               <tbody id="tbl-geral-contratos" class="divide-y divide-dark-border"></tbody>
             </table>
+          </div>
+        <div class="bg-dark-card rounded-2xl border border-dark-border p-6 overflow-x-auto">
+            <h3 class="text-lg font-bold mb-4">Transportadoras cadastradas</h3>
+            <table class="w-full text-left text-sm"><thead><tr><th class="py-3">Razão social</th><th class="py-3">CNPJ</th><th class="py-3">E-mail</th><th class="py-3">Telefone</th><th class="py-3">Ações</th></tr></thead>
+            <tbody id="tbl-edicao-transportadoras" class="divide-y divide-dark-border"></tbody></table>
           </div>
         </div>
 
@@ -386,6 +399,7 @@
                   <th class="py-3">Próxima Revisão</th>
                   <th class="py-3">KM Restantes</th>
                   <th class="py-3">Situação</th>
+                <th class="py-3">Ações</th>
                 </tr>
               </thead>
               <tbody id="tbl-geral-manutencao" class="divide-y divide-dark-border"></tbody>
@@ -415,6 +429,7 @@
                   <th class="py-3">Mês/Ano Ref.</th>
                   <th class="py-3">Valor Mensal</th>
                   <th class="py-3">Dia Vencimento</th>
+                <th class="py-3">Ações</th>
                 </tr>
               </thead>
               <tbody id="tbl-geral-custos" class="divide-y divide-dark-border"></tbody>
@@ -596,7 +611,7 @@
 
   <!-- JAVASCRIPT INTEGRADO COM TRATAMENTO DE ERRO -->
   <script>
-    const API_URL = "https://locadora-fl-production.up.railway.app";
+    const API_URL = window.location.origin;
 
     // --- SISTEMA DE NOTIFICAÇÕES (TOASTS) ---
     // Substitui os alert()/confirm() nativos do navegador por um componente próprio.
@@ -775,8 +790,8 @@
       document.getElementById(`nav-${aba}`).className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg bg-brand-green text-white font-semibold shadow-sm transition";
 
       if (aba === 'frota') carregarTabelaFrota();
-      if (aba === 'checklist') carregarSelectChecklist();
-      if (aba === 'contratos') carregarTabelaContratos();
+      if (aba === 'checklist') { carregarSelectChecklist(); carregarListasEdicao('checklists'); }
+      if (aba === 'contratos') { carregarTabelaContratos(); carregarListasEdicao('transportadoras'); }
       if (aba === 'manutencao') carregarTabelaManutencao();
       if (aba === 'financeiro') carregarTabelaCustos();
     }
@@ -813,17 +828,18 @@
       const veiculos = await res.json();
       const tbl = document.getElementById('tbl-dash-veiculos');
       if (veiculos.length === 0) {
-        tbl.innerHTML = `<tr><td colspan="6" class="py-3 text-center text-dark-subtext">Nenhum veículo cadastrado. Vá na aba 'Frota' para cadastrar o primeiro.</td></tr>`;
+        tbl.innerHTML = `<tr><td colspan="7" class="py-3 text-center text-dark-subtext">Nenhum veículo cadastrado. Vá na aba 'Frota' para cadastrar o primeiro.</td></tr>`;
         return;
       }
       tbl.innerHTML = veiculos.map(v => `
         <tr class="hover:bg-brand-navyDark transition">
-          <td class="py-3 font-mono font-bold">${v.placa}</td>
-          <td class="py-3 text-xs text-brand-green">${v.categoria}</td>
-          <td class="py-3">${v.modelo}</td>
+          <td class="py-3 font-mono font-bold">${textoSeguro(v.placa)}</td>
+          <td class="py-3 text-xs text-brand-green">${textoSeguro(v.categoria)}</td>
+          <td class="py-3">${textoSeguro(v.modelo)}</td>
           <td class="py-3 font-bold">${v.km_atual.toLocaleString()} KM</td>
-          <td class="py-3">${v.capacidade_carga_kg || 650} KG</td>
-          <td class="py-3"><span class="px-2 py-0.5 rounded text-xs ${v.status === 'ALOCADO' ? 'bg-emerald-900/60 text-emerald-300' : 'bg-slate-700 text-slate-300'}">${v.status}</span></td>
+          <td class="py-3">${v.capacidade_carga_kg ?? 650} KG</td>
+          <td class="py-3"><span class="px-2 py-0.5 rounded text-xs ${v.status === 'ALOCADO' ? 'bg-emerald-900/60 text-emerald-300' : 'bg-slate-700 text-slate-300'}">${textoSeguro(v.status)}</span></td>
+        <td class="py-3">${botaoEditar('veiculos', v.id)}</td>
         </tr>
       `).join('');
     }
@@ -834,13 +850,14 @@
       document.getElementById('tbl-geral-veiculos').innerHTML = list.map(v => `
         <tr>
           <td class="py-3 font-bold">#${v.id}</td>
-          <td class="py-3 font-mono font-bold text-brand-green">${v.placa}</td>
-          <td class="py-3 text-xs">${v.categoria}</td>
-          <td class="py-3">${v.modelo}</td>
+          <td class="py-3 font-mono font-bold text-brand-green">${textoSeguro(v.placa)}</td>
+          <td class="py-3 text-xs">${textoSeguro(v.categoria)}</td>
+          <td class="py-3">${textoSeguro(v.modelo)}</td>
           <td class="py-3">${v.ano}</td>
-          <td class="py-3">${v.capacidade_carga_kg || 650} KG</td>
+          <td class="py-3">${v.capacidade_carga_kg ?? 650} KG</td>
           <td class="py-3 font-bold">${v.km_atual} KM</td>
-          <td class="py-3"><span class="px-2 py-1 rounded text-xs bg-brand-navy text-brand-green">${v.status}</span></td>
+          <td class="py-3"><span class="px-2 py-1 rounded text-xs bg-brand-navy text-brand-green">${textoSeguro(v.status)}</span></td>
+        <td class="py-3">${botaoEditar('veiculos', v.id)}</td>
         </tr>
       `).join('');
     }
@@ -852,7 +869,7 @@
       if (list.length === 0) {
         select.innerHTML = `<option value="">Nenhum veículo cadastrado</option>`;
       } else {
-        select.innerHTML = list.map(v => `<option value="${v.id}">${v.placa} - ${v.modelo} (${v.categoria})</option>`).join('');
+        select.innerHTML = list.map(v => `<option value="${v.id}">${textoSeguro(v.placa)} - ${textoSeguro(v.modelo)} (${textoSeguro(v.categoria)})</option>`).join('');
       }
     }
 
@@ -870,13 +887,13 @@
       if (veiculos.length === 0) {
         selVeiculo.innerHTML = `<option value="">Nenhum veículo cadastrado</option>`;
       } else {
-        selVeiculo.innerHTML = veiculos.map(v => `<option value="${v.id}">${v.placa} - ${v.modelo}</option>`).join('');
+        selVeiculo.innerHTML = veiculos.map(v => `<option value="${v.id}">${textoSeguro(v.placa)} - ${textoSeguro(v.modelo)}</option>`).join('');
       }
 
       if (transportadoras.length === 0) {
         selTransp.innerHTML = `<option value="">Nenhuma transportadora cadastrada</option>`;
       } else {
-        selTransp.innerHTML = transportadoras.map(t => `<option value="${t.id}">${t.nome_fantasia || t.razao_social}</option>`).join('');
+        selTransp.innerHTML = transportadoras.map(t => `<option value="${t.id}">${textoSeguro(t.nome_fantasia || t.razao_social)}</option>`).join('');
       }
 
       abrirModal('modal-contrato');
@@ -894,7 +911,8 @@
           <td class="py-3">R$ ${c.valor_km_excedente.toFixed(2)}</td>
           <td class="py-3 font-bold text-brand-green">R$ ${c.valor_mensalidade.toFixed(2)}</td>
           <td class="py-3">Dia ${c.dia_vencimento_fatura}</td>
-          <td class="py-3"><span class="px-2 py-1 rounded text-xs bg-emerald-900/60 text-emerald-300">${c.status}</span></td>
+          <td class="py-3"><span class="px-2 py-1 rounded text-xs bg-emerald-900/60 text-emerald-300">${textoSeguro(c.status)}</span></td>
+        <td class="py-3">${botaoEditar('contratos', c.id)}</td>
         </tr>
       `).join('');
     }
@@ -907,14 +925,15 @@
         const rest = prox - v.km_atual;
         return `
           <tr>
-            <td class="py-3 font-mono font-bold">${v.placa}</td>
-            <td class="py-3">${v.modelo}</td>
+            <td class="py-3 font-mono font-bold">${textoSeguro(v.placa)}</td>
+            <td class="py-3">${textoSeguro(v.modelo)}</td>
             <td class="py-3">${v.km_atual} KM</td>
             <td class="py-3">${v.km_ultima_revisao} KM</td>
             <td class="py-3 font-bold text-amber-300">${prox} KM</td>
             <td class="py-3 font-bold ${rest <= 500 ? 'text-red-400' : 'text-slate-300'}">${rest} KM</td>
             <td class="py-3">${rest <= 500 ? '<span class="px-2 py-1 rounded text-xs bg-red-900/60 text-red-300">Revisão Recomendada</span>' : '<span class="px-2 py-1 rounded text-xs bg-emerald-900/60 text-emerald-300">Em dia</span>'}</td>
-          </tr>
+          <td class="py-3">${botaoEditar('veiculos', v.id)}</td>
+        </tr>
         `;
       }).join('');
     }
@@ -926,7 +945,7 @@
       if (veiculos.length === 0) {
         sel.innerHTML = `<option value="">Nenhum veículo cadastrado</option>`;
       } else {
-        sel.innerHTML = veiculos.map(v => `<option value="${v.id}">${v.placa} - ${v.modelo}</option>`).join('');
+        sel.innerHTML = veiculos.map(v => `<option value="${v.id}">${textoSeguro(v.placa)} - ${textoSeguro(v.modelo)}</option>`).join('');
       }
       abrirModal('modal-custo');
     }
@@ -936,12 +955,13 @@
       const list = await res.json();
       document.getElementById('tbl-geral-custos').innerHTML = list.map(c => `
         <tr>
-          <td class="py-3 font-bold">${c.descricao}</td>
+          <td class="py-3 font-bold">${textoSeguro(c.descricao)}</td>
           <td class="py-3">Veículo ID ${c.veiculo_id}</td>
-          <td class="py-3">${c.tipo_custo}</td>
+          <td class="py-3">${textoSeguro(c.tipo_custo)}</td>
           <td class="py-3">${c.mes_referencia || 'Todos'}/${c.ano_referencia || '2026'}</td>
           <td class="py-3 font-bold text-red-400">R$ ${c.valor_mensal.toFixed(2)}</td>
           <td class="py-3">Dia ${c.dia_vencimento}</td>
+        <td class="py-3">${botaoEditar('custos-fixos', c.id)}</td>
         </tr>
       `).join('');
     }
@@ -977,6 +997,7 @@
         if (res.ok) {
           toast(data.mensagem, "success");
           document.getElementById('chk-km').value = '';
+          carregarListasEdicao('checklists');
           carregarDashboard();
         } else { toast(data.detail || 'Falha ao salvar', "error"); }
       } catch (err) { toast("Servidor offline. Verifique se a API está no ar.", "error"); }
@@ -1028,6 +1049,7 @@
         if (res.ok) {
           toast("Transportadora cadastrada com sucesso!", "success");
           fecharModal('modal-transportadora');
+          carregarListasEdicao('transportadoras');
         } else { toast(data.detail || 'Verifique os campos', "error"); }
       } catch (err) { toast("Não foi possível conectar ao servidor.", "error"); }
     });
@@ -1214,5 +1236,6 @@
       verificarSessao();
     };
   </script>
+  <script src="/editing.js"></script>
 </body>
 </html>
